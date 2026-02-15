@@ -7,11 +7,11 @@ const cors = require('cors');
 const Poll = require('./models/Poll');
 
 const app = express();
-const path = require('path');
 const server = http.createServer(app);
+
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: "*", // you can restrict later
         methods: ["GET", "POST"]
     }
 });
@@ -19,64 +19,105 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
+/*
+   Request logger — helpful for debugging
+*/
 app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path}`, req.body && Object.keys(req.body).length > 0 ? req.body : '');
+    console.log(`${req.method} ${req.path}`,
+        req.body && Object.keys(req.body).length > 0 ? req.body : '');
     next();
 });
 
+/*
+   Health check route (important for Render)
+*/
+app.get('/', (req, res) => {
+    res.send('API is running 🚀');
+});
+
+/*
+   MongoDB connection
+*/
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('DB Connected'))
-    .catch(err => console.error(err));
+    .catch(err => console.error('Mongo Error:', err));
 
+/*
+   Create poll
+*/
 app.post('/api/polls', async (req, res) => {
     try {
-        const { question, options } = req.body;
+        const { question, options, creatorId } = req.body;
+
         if (!question || !options || options.length < 2) {
             return res.status(400).json({ error: 'Invalid data' });
         }
-        const { creatorId } = req.body;
-        const formattedOptions = options.map(opt => ({ text: opt, votes: 0 }));
-        const poll = await Poll.create({ question, options: formattedOptions, creatorId });
+
+        const formattedOptions = options.map(opt => ({
+            text: opt,
+            votes: 0
+        }));
+
+        const poll = await Poll.create({
+            question,
+            options: formattedOptions,
+            creatorId
+        });
+
         res.status(201).json(poll);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
+/*
+   Get poll by ID
+*/
 app.get('/api/polls/:id', async (req, res) => {
     try {
         const poll = await Poll.findById(req.params.id);
         if (!poll) return res.status(404).json({ error: 'Not found' });
+
         res.json(poll);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// Get polls by creator
+/*
+   Get polls by creator
+*/
 app.get('/api/polls/user/:creatorId', async (req, res) => {
     try {
-        const polls = await Poll.find({ creatorId: req.params.creatorId }).sort({ createdAt: -1 });
+        const polls = await Poll.find({ creatorId: req.params.creatorId })
+            .sort({ createdAt: -1 });
+
         res.json(polls);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// Get polls users voted in
+/*
+   Get voted polls
+*/
 app.get('/api/polls/voted/:userId', async (req, res) => {
     try {
-        const polls = await Poll.find({ votedUserIds: req.params.userId }).sort({ createdAt: -1 });
+        const polls = await Poll.find({ votedUserIds: req.params.userId })
+            .sort({ createdAt: -1 });
+
         res.json(polls);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
+/*
+   Vote
+*/
 app.post('/api/polls/:id/vote', async (req, res) => {
-    const { optionId, userId } = req.body; // accept userId from client
+    const { optionId, userId } = req.body;
 
-    // normalize IP
     let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     if (ip.includes(',')) ip = ip.split(',')[0];
     ip = ip.replace('::ffff:', '');
@@ -85,15 +126,12 @@ app.post('/api/polls/:id/vote', async (req, res) => {
         const poll = await Poll.findById(req.params.id);
         if (!poll) return res.status(404).json({ error: 'Poll not found' });
 
-        // ensure array exists
         if (!poll.votedIps) poll.votedIps = [];
 
         if (poll.votedIps.includes(ip)) {
-            // We might still allow voting if userId isn't in votedUserIds, but generally IP check is safer against spam
             return res.status(403).json({ error: 'You have already voted from this network' });
         }
 
-        // Check userId to avoid double voting if IP changed but user is same
         if (userId && poll.votedUserIds && poll.votedUserIds.includes(userId)) {
             return res.status(403).json({ error: 'You have already voted' });
         }
@@ -103,6 +141,7 @@ app.post('/api/polls/:id/vote', async (req, res) => {
 
         option.votes += 1;
         poll.votedIps.push(ip);
+
         if (userId) {
             if (!poll.votedUserIds) poll.votedUserIds = [];
             poll.votedUserIds.push(userId);
@@ -118,22 +157,20 @@ app.post('/api/polls/:id/vote', async (req, res) => {
     }
 });
 
-// Serve frontend in production
-if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV !== 'development') {
-    app.use(express.static(path.join(__dirname, '../client/dist')));
-
-    app.get('*', (req, res) => {
-        res.sendFile(path.resolve(__dirname, '../client', 'dist', 'index.html'));
-    });
-}
-
-
-
+/*
+   Socket join room
+*/
 io.on('connection', (socket) => {
     socket.on('joinPoll', (pollId) => {
         socket.join(pollId);
     });
 });
 
+/*
+   Start server
+*/
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on ${PORT}`));
+
+server.listen(PORT, () => {
+    console.log(`Server running on ${PORT}`);
+});
