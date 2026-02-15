@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { getUserId } from '../utils/auth';
 import { FaPoll, FaChartBar, FaArrowLeft, FaClock, FaCheckCircle, FaPen } from 'react-icons/fa';
 import gsap from 'gsap';
+import { API_BASE_URL } from '../config';
 
 const MyPolls = () => {
     const [createdPolls, setCreatedPolls] = useState([]);
@@ -19,8 +20,8 @@ const MyPolls = () => {
             setLoading(true);
             try {
                 const [createdRes, votedRes] = await Promise.all([
-                    axios.get(`http://localhost:5000/api/polls/user/${userId}`).catch(err => ({ data: [] })),
-                    axios.get(`http://localhost:5000/api/polls/voted/${userId}`).catch(err => ({ data: [] }))
+                    axios.get(`${API_BASE_URL}/api/polls/user/${userId}`).catch(err => ({ data: [] })),
+                    axios.get(`${API_BASE_URL}/api/polls/voted/${userId}`).catch(err => ({ data: [] }))
                 ]);
 
                 setCreatedPolls(createdRes.data || []);

@@ -5,8 +5,9 @@ import { io } from 'socket.io-client';
 import gsap from 'gsap';
 import { FaCopy, FaCheckCircle, FaChartPie, FaArrowLeft } from 'react-icons/fa';
 import { getUserId } from '../utils/auth';
+import { API_BASE_URL, SOCKET_URL } from '../config';
 
-const socket = io('http://localhost:5000');
+const socket = io(SOCKET_URL);
 
 const PollRoom = () => {
     const { id } = useParams();
@@ -23,7 +24,7 @@ const PollRoom = () => {
     useEffect(() => {
         const fetchPoll = async () => {
             try {
-                const res = await axios.get(`http://localhost:5000/api/polls/${id}`);
+                const res = await axios.get(`${API_BASE_URL}/api/polls/${id}`);
                 setPoll(res.data);
 
                 // GSAP Entrance
@@ -100,7 +101,7 @@ const PollRoom = () => {
         if (hasVoted) return;
 
         try {
-            await axios.post(`http://localhost:5000/api/polls/${id}/vote`, {
+            await axios.post(`${API_BASE_URL}/api/polls/${id}/vote`, {
                 optionId,
                 userId: getUserId()
             });

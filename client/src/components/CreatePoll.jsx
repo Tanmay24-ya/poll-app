@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { FaPlus, FaArrowRight, FaArrowLeft } from 'react-icons/fa';
 import { getUserId } from '../utils/auth';
+import { API_BASE_URL } from '../config';
 
 const CreatePoll = () => {
     const [question, setQuestion] = useState('');
@@ -32,8 +33,6 @@ const CreatePoll = () => {
 
     const addOption = () => {
         setOptions([...options, '']);
-        // Small animation for new input finding its place could go here, 
-        // but React re-renders might make it tricky without more complex setup.
     };
 
     const handleSubmit = async (e) => {
@@ -44,7 +43,7 @@ const CreatePoll = () => {
         if (cleanOptions.length < 2) return alert('At least 2 valid options required');
 
         try {
-            const res = await axios.post('http://localhost:5000/api/polls', { // Ensure this matches your server port
+            const res = await axios.post(`${API_BASE_URL}/api/polls`, {
                 question,
                 options: cleanOptions,
                 creatorId: getUserId()
