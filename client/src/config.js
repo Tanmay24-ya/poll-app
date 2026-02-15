@@ -1,2 +1,4 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://poll-app-e3m4.onrender.com';
-export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://poll-app-e3m4.onrender.com';
+const isProduction = import.meta.env.PROD;
+export const API_BASE_URL = isProduction ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:5000');
+export const SOCKET_URL = isProduction ? '/' : (import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
+

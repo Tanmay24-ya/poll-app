@@ -7,6 +7,7 @@ const cors = require('cors');
 const Poll = require('./models/Poll');
 
 const app = express();
+const path = require('path');
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
@@ -116,6 +117,16 @@ app.post('/api/polls/:id/vote', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+// Serve frontend in production
+if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV !== 'development') {
+    app.use(express.static(path.join(__dirname, '../client/dist')));
+
+    app.get('*', (req, res) => {
+        res.sendFile(path.resolve(__dirname, '../client', 'dist', 'index.html'));
+    });
+}
+
 
 
 io.on('connection', (socket) => {
